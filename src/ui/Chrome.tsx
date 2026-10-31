@@ -29,7 +29,7 @@ export function Header() {
         <StatBar kind="growth" />
       </div>
       {banner && <div class="banner">{banner}</div>}
-      {snap.error && <div class="banner err">⚠ {snap.error}</div>}
+      {snap.error && <div class="banner err">⚠ {t('dbError', { c: snap.error })}</div>}
     </header>
   );
 }

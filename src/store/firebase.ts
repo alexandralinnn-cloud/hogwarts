@@ -72,9 +72,9 @@ export class FirebaseStore implements Store {
     this.subs.forEach((cb) => cb(this.snap));
   }
 
-  private fail = (e: Error) => {
+  private fail = (e: Error & { code?: string }) => {
     console.error(e);
-    this.set({ error: e.message, ready: true });
+    this.set({ error: e.code || e.message, ready: true });
   };
 
   private markGot(part: keyof typeof this.got) {

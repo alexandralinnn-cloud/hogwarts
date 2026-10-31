@@ -1,11 +1,11 @@
 // Security rules for the Hogwarts database (Cloud Firestore).
 // Paste this into Firebase console → Firestore Database → Rules, then press "Publish".
-// Replace OWNER_UID_HERE with the owner's User UID (Authentication → Users).
+// The UID below is the owner's account (Authentication → Users).
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     function isOwner() {
-      return request.auth != null && request.auth.uid == 'OWNER_UID_HERE';
+      return request.auth != null && request.auth.uid == 'hDqKKGELFzZuMvSwlTlYio4q56i1';
     }
 
     // Tasks: everyone can read the ones that are not private; only the owner can change them.
