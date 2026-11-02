@@ -1,6 +1,6 @@
 import { useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { useApp } from '../app';
-import { isUrgentOpen } from '../model';
+import { needsAlert } from '../model';
 import { IMG_H, IMG_W, SCENES } from '../scenes';
 import { TOWN_URL } from './Bits';
 
@@ -35,7 +35,7 @@ export function TownMap() {
     el.scrollTop = (h - size.h) / 2;
   }, [w, h]);
 
-  const urgent = (id: string) => snap.tasks.filter((t) => t.scene === id && isUrgentOpen(t)).length;
+  const urgent = (id: string) => snap.tasks.filter((t) => t.scene === id && needsAlert(t)).length;
 
   return (
     <div class="map" ref={box}>

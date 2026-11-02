@@ -17,6 +17,7 @@ export function TaskEditor() {
           desc: existing.desc[existing.desc.src],
           scene: existing.scene,
           urgency: existing.urgency,
+          due: existing.due || '',
           importance: existing.importance,
           difficulty: existing.difficulty,
           reward: existing.reward,
@@ -27,6 +28,7 @@ export function TaskEditor() {
           desc: '',
           scene: edit?.mode === 'new' ? edit.scene : 'library',
           urgency: 'low',
+          due: '',
           importance: 2,
           difficulty: 2,
           reward: 2,
@@ -127,8 +129,29 @@ export function TaskEditor() {
               options={[
                 { value: 'high', label: t('high') },
                 { value: 'low', label: t('low') },
+                { value: 'none', label: t('none') },
               ]}
             />
+          </div>
+          <div class="frow">
+            <label class="fl">
+              <Icon name="calendar" size={12} /> {t('due')}
+            </label>
+            <div class="duepick">
+              <input
+                type="date"
+                class={`fi date${f.due ? '' : ' empty'}`}
+                value={f.due}
+                onInput={(e) => set('due', (e.target as HTMLInputElement).value)}
+                onChange={(e) => set('due', (e.target as HTMLInputElement).value)}
+              />
+              {!f.due && <span class="dueph">{t('noDue')}</span>}
+              {f.due && (
+                <button type="button" class="pbtn small dark" onClick={() => set('due', '')}>
+                  {t('clear')}
+                </button>
+              )}
+            </div>
           </div>
           <div class="frow">
             <label class="fl">{t('importance')}</label>

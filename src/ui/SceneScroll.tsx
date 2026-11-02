@@ -2,7 +2,7 @@ import { useState } from 'preact/hooks';
 import { useApp } from '../app';
 import { sortTasks, txt, type Task } from '../model';
 import { sceneById } from '../scenes';
-import { Pips, Scroll, TaskRow, Thumb, Toggle } from './Bits';
+import { DueTag, formatDue, Pips, Scroll, TaskRow, Thumb, Toggle } from './Bits';
 import { Icon } from './Icon';
 
 /** Opens over the town when a building is tapped: the task list, or one task. */
@@ -132,7 +132,7 @@ function TaskDetail({ task }: { task: Task }) {
         <div class="badges">
           <div>
             <small>{t('urgency')}</small>
-            <b class={task.urgency === 'high' ? 'r' : ''}>{task.urgency === 'high' ? t('high') : t('low')}</b>
+            <b class={task.urgency === 'high' ? 'r' : task.urgency === 'none' ? 'sm' : ''}>{t(task.urgency)}</b>
           </div>
           <div>
             <small>{t('importance')}</small>
@@ -147,6 +147,14 @@ function TaskDetail({ task }: { task: Task }) {
             <Pips n={task.reward} kind="co" />
           </div>
         </div>
+        {task.due && (
+          <div class="dueline">
+            <span>
+              {t('due')} · {formatDue(task.due, lang)}
+            </span>
+            {!task.done && <DueTag due={task.due} />}
+          </div>
+        )}
         {txt(task.desc, lang) && <p class="desc">{txt(task.desc, lang)}</p>}
         {task.done && task.doneAt && (
           <p class="doneinfo">

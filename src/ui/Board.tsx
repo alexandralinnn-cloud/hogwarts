@@ -1,6 +1,6 @@
 import { useState } from 'preact/hooks';
 import { useApp } from '../app';
-import { sortTasks, type Level3 } from '../model';
+import { ALERT_DAYS, daysLeft, sortTasks, type Level3, type Urgency } from '../model';
 import { Pips, TaskRow } from './Bits';
 
 type F<T> = T | 'all';
@@ -8,7 +8,8 @@ type F<T> = T | 'all';
 /** All open tasks, filtered by the four attributes. Tapping one jumps to its building. */
 export function Board() {
   const { snap, t, openScene } = useApp();
-  const [urg, setUrg] = useState<F<'high' | 'low'>>('all');
+  const [urg, setUrg] = useState<F<Urgency>>('all');
+  const [due, setDue] = useState<F<'soon'>>('all');
   const [imp, setImp] = useState<F<Level3>>('all');
   const [dif, setDif] = useState<F<Level3>>('all');
   const [rew, setRew] = useState<F<Level3>>('all');
@@ -18,6 +19,7 @@ export function Board() {
       (x) =>
         !x.done &&
         (urg === 'all' || x.urgency === urg) &&
+        (due === 'all' || (daysLeft(x.due) ?? Infinity) <= ALERT_DAYS) &&
         (imp === 'all' || x.importance === imp) &&
         (dif === 'all' || x.difficulty === dif) &&
         (rew === 'all' || x.reward === rew),
@@ -29,7 +31,18 @@ export function Board() {
     <div class="page">
       <h2 class="ptitle">{t('boardTitle')}</h2>
       <div class="filters pdark">
-        <Chips label={t('urgency')} value={urg} set={setUrg} options={[['high', t('high')], ['low', t('low')]]} all={t('all')} />
+        <Chips
+          label={t('urgency')}
+          value={urg}
+          set={setUrg}
+          options={[
+            ['high', t('high')],
+            ['low', t('low')],
+            ['none', t('none')],
+          ]}
+          all={t('all')}
+        />
+        <Chips label={t('dueFilter')} value={due} set={setDue} options={[['soon', t('within3')]]} all={t('all')} />
         <Chips label={t('importance')} value={imp} set={setImp} options={lv.map((n) => [n, <Pips n={n} kind="sq" />])} all={t('all')} />
         <Chips
           label={t('difficulty')}

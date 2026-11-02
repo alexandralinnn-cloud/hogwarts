@@ -20,10 +20,11 @@ import fire from 'pixelarticons/svg/fire.svg?raw';
 import login from 'pixelarticons/svg/login.svg?raw';
 import logout from 'pixelarticons/svg/logout.svg?raw';
 import eye from 'pixelarticons/svg/eye.svg?raw';
+import calendar from 'pixelarticons/svg/calendar.svg?raw';
 
 const ICONS = {
   map, script, chart, zap, heart, close, plus, check, lock, messageText, message, human, cog,
-  pencil, trash, chevronLeft, download, upload, fire, login, logout, eye,
+  pencil, trash, chevronLeft, download, upload, fire, login, logout, eye, calendar,
 };
 
 export type IconName = keyof typeof ICONS;

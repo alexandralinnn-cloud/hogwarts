@@ -1,6 +1,7 @@
 import type { ComponentChildren } from 'preact';
+import { useEffect, useRef, useState } from 'preact/hooks';
 import { useApp } from '../app';
-import { levelOf, titleOf, txt, type Task } from '../model';
+import { ALERT_DAYS, daysLeft, levelOf, titleOf, txt, type Lang, type Task } from '../model';
 import { IMG_H, IMG_W, sceneById, type SceneId } from '../scenes';
 import { Icon } from './Icon';
 
@@ -48,9 +49,21 @@ export function Scroll({ children, class: cls = '' }: { children: ComponentChild
 
 export function StatBar({ kind, big = false }: { kind: 'exec' | 'growth'; big?: boolean }) {
   const { snap, lang, t } = useApp();
-  const lv = levelOf(snap.stats[kind] || 0);
+  const value = snap.stats[kind] || 0;
+  const lv = levelOf(value);
+  // flash when the points change (but not when the data first arrives)
+  const prev = useRef<number | null>(null);
+  const [flash, setFlash] = useState<'' | 'up' | 'down'>('');
+  useEffect(() => {
+    const before = prev.current;
+    prev.current = value;
+    if (before === null || before === value || !snap.ready) return;
+    setFlash(value > before ? 'up' : 'down');
+    const timer = setTimeout(() => setFlash(''), 1300);
+    return () => clearTimeout(timer);
+  }, [value]);
   return (
-    <div class={`stat ${kind}`}>
+    <div class={`stat ${kind}${flash ? ` flash-${flash}` : ''}`}>
       <div class="sl">
         <Icon name={kind === 'exec' ? 'zap' : 'heart'} size={12} />
         <span>{t(kind)}</span>
@@ -93,6 +106,7 @@ export function TaskRow({ task, showScene = false, onOpen }: { task: Task; showS
           {txt(task.title, lang)}
         </div>
         <div class="attrs">
+          {!task.done && <DueTag due={task.due} />}
           <span>
             {t('importanceShort')}
             <Pips n={task.importance} kind="sq" />
@@ -154,5 +168,33 @@ export function Toggle({ on, onChange, disabled }: { on: boolean; onChange: (v: 
         onChange(!on);
       }}
     />
+  );
+}
+
+export function formatDue(due: string, lang: Lang) {
+  const [y, m, d] = due.split('-').map(Number);
+  if (lang === 'zh') return `${m}月${d}日`;
+  return new Date(y, m - 1, d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+}
+
+/** "3 days left" / "Due today" / "2 days overdue" / "Due 20 Nov" */
+export function DueTag({ due }: { due?: string }) {
+  const { t, lang } = useApp();
+  const left = daysLeft(due);
+  if (left === null || !due) return null;
+  const plural = (s: string, n: number) => (lang === 'en' && n === 1 ? s.replace('days', 'day') : s);
+  const [cls, text] =
+    left < 0
+      ? ['over', plural(t('overdue', { n: -left }), -left)]
+      : left === 0
+        ? ['today', t('dueToday')]
+        : left <= ALERT_DAYS
+          ? ['soon', plural(t('dueIn', { n: left }), left)]
+          : ['later', t('dueOn', { d: formatDue(due, lang) })];
+  return (
+    <span class={`due ${cls}`}>
+      <Icon name="calendar" size={12} />
+      {text}
+    </span>
   );
 }

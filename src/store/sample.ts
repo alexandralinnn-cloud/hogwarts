@@ -1,8 +1,9 @@
-import { dayKeyOffset, type L10n, type LogEntry, type Stats, type Task } from '../model';
+import { dayKeyOffset, isoDate, type L10n, type LogEntry, type Stats, type Task } from '../model';
 import type { SceneId } from '../scenes';
 
 const T = (zh: string, en: string): L10n => ({ zh, en, src: 'zh' });
 const DAY = 86400000;
+const inDays = (n: number) => isoDate(Date.now() + n * DAY);
 let n = 0;
 
 function task(
@@ -42,7 +43,7 @@ export function sampleTasks(): Task[] {
   n = 0;
   return [
     task('library', T('搞懂强积金该怎么选基金', 'Figure out how to choose MPF funds'), {
-      urgency: 'high', importance: 3, difficulty: 2, reward: 3,
+      urgency: 'high', due: inDays(2), importance: 3, difficulty: 2, reward: 3,
       desc: T('公司下个月要我确认基金组合，想先弄清楚风险和收费再选。', 'Work wants my fund choice next month. I want to understand risk and fees first.'),
       subs: [
         ['找到强积金账户的登录方式', 'Find how to log in to the MPF account', true],
@@ -60,14 +61,14 @@ export function sampleTasks(): Task[] {
       ],
     }),
     task('library', T('了解猫为什么会打呼噜', 'Learn why cats purr'), { importance: 1, difficulty: 1, reward: 1 }),
-    task('clinic', T('预约洗牙', 'Book a dental cleaning'), { importance: 2, difficulty: 1, reward: 2 }),
+    task('clinic', T('预约洗牙', 'Book a dental cleaning'), { urgency: 'high', due: inDays(10), importance: 2, difficulty: 1, reward: 2 }),
     task('clinic', T('每周去游泳一次', 'Swim once a week'), { importance: 3, difficulty: 2, reward: 3 }),
     task('market', T('买一台小打印机', 'Buy a small printer'), { importance: 2, difficulty: 1, reward: 3 }),
-    task('market', T('给书桌添一盏台灯', 'Get a desk lamp'), { importance: 1, difficulty: 1, reward: 2 }),
+    task('market', T('给书桌添一盏台灯', 'Get a desk lamp'), { urgency: 'none', importance: 1, difficulty: 1, reward: 2 }),
     task('guild', T('帮妈妈设置新手机', "Set up Mum's new phone"), {
-      urgency: 'high', importance: 3, difficulty: 1, reward: 3,
+      urgency: 'high', due: inDays(1), importance: 3, difficulty: 1, reward: 3,
     }),
-    task('tavern', T('约朋友周末去行山', 'Plan a weekend hike with friends'), { importance: 1, difficulty: 1, reward: 3 }),
+    task('tavern', T('约朋友周末去行山', 'Plan a weekend hike with friends'), { urgency: 'none', importance: 1, difficulty: 1, reward: 3 }),
     task('farm', T('每天练习英文口语 10 分钟', 'Practise spoken English 10 minutes a day'), {
       importance: 3, difficulty: 2, reward: 3,
     }),

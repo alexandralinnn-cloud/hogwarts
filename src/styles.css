@@ -300,3 +300,48 @@ input, textarea { font-family: var(--f); font-size: 16px; -webkit-user-select: t
 .ask { padding: 18px; max-width: 320px; }
 .ask p { font-size: 16px; line-height: 1.5; margin-bottom: 15px; }
 .ask .btnrow { justify-content: flex-end; }
+
+/* ----- due dates ----- */
+.due { display: inline-flex; align-items: center; gap: 3px; padding: 0 5px; }
+.due.later { color: var(--ink2); }
+.due.soon { background: #f3c06a; color: var(--ink); }
+.due.today, .due.over { background: var(--red); color: var(--cream); }
+.dueline { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; font-size: 12px; color: var(--ink2); margin: -3px 3px 12px; }
+.duepick { display: flex; align-items: center; gap: 9px; position: relative; }
+.fi.date { width: 150px; min-height: 30px; padding: 3px 6px; font-size: 16px; -webkit-appearance: none; appearance: none; }
+.fi.date.empty { color: transparent; }
+.fi.date::-webkit-date-and-time-value { text-align: left; }
+.dueph { position: absolute; left: 9px; top: 50%; transform: translateY(-50%); font-size: 12px; color: var(--ink2); pointer-events: none; }
+.seg button { white-space: nowrap; }
+
+/* ----- big "+points" in the middle of the screen ----- */
+.gains { position: fixed; left: 0; right: 0; top: 36%; display: flex; flex-direction: column; align-items: center; gap: 12px; pointer-events: none; z-index: 90; }
+.gain {
+  position: relative; display: flex; align-items: baseline; gap: 12px; padding: 6px 21px 9px;
+  background: rgba(42, 23, 12, 0.9);
+  box-shadow: 0 -3px 0 var(--gold), 0 3px 0 var(--gold), -3px 0 0 var(--gold), 3px 0 0 var(--gold), 0 0 0 6px rgba(42, 23, 12, 0.6);
+  animation: gainpop 2s steps(20) forwards;
+}
+.gain b { font-size: 48px; font-weight: 400; line-height: 1; text-shadow: 3px 3px 0 var(--ink); }
+.gain span { font-size: 24px; color: var(--cream); }
+.gain.exec b { color: #ffb347; }
+.gain.growth b { color: #8fd65a; }
+.gain.neg { box-shadow: 0 -3px 0 #ff8a7a, 0 3px 0 #ff8a7a, -3px 0 0 #ff8a7a, 3px 0 0 #ff8a7a; }
+.gain.neg b { color: #ff8a7a; }
+@keyframes gainpop {
+  0% { transform: scale(0.3); opacity: 0; }
+  10% { transform: scale(1.2); opacity: 1; }
+  18% { transform: scale(1); }
+  75% { transform: translateY(0); opacity: 1; }
+  100% { transform: translateY(-48px); opacity: 0; }
+}
+.spark { position: absolute; left: 50%; top: 50%; width: 6px; height: 6px; margin: -3px; background: var(--gold); box-shadow: 0 0 0 2px var(--ink); animation: spark 0.8s steps(8) 0.15s both; }
+@keyframes spark { from { transform: translate(0, 0); opacity: 1; } to { transform: translate(var(--dx), var(--dy)); opacity: 0; } }
+
+/* the bar at the top flashes when points change */
+.stat.flash-up .bar { animation: barflash 0.4s steps(2) 3; }
+.stat.flash-up em { animation: textflash 0.4s steps(2) 3; }
+.stat.flash-down .bar { animation: barflashdown 0.4s steps(2) 3; }
+@keyframes barflash { 50% { box-shadow: 0 -3px 0 var(--gold), 0 3px 0 var(--gold), -3px 0 0 var(--gold), 3px 0 0 var(--gold), 0 0 12px 3px rgba(255, 211, 77, 0.9); } }
+@keyframes barflashdown { 50% { box-shadow: 0 -3px 0 #ff8a7a, 0 3px 0 #ff8a7a, -3px 0 0 #ff8a7a, 3px 0 0 #ff8a7a; } }
+@keyframes textflash { 50% { color: #fff; } }

@@ -1,14 +1,21 @@
-import { useApp, type Toast } from '../app';
+import { useApp, type GainPop, type Toast } from '../app';
 import { titleOf } from '../model';
+
+// little squares that fly out from the number
+const SPARKS = [
+  [-60, -36], [60, -36], [-84, 6], [84, 6], [-48, 42], [48, 42], [0, -54], [0, 54],
+];
 
 export function Overlays({
   toasts,
+  gains,
   levelUp,
   closeLevelUp,
   question,
   answer,
 }: {
   toasts: Toast[];
+  gains: GainPop[];
   levelUp: { kind: 'exec' | 'growth'; level: number } | null;
   closeLevelUp: () => void;
   question: { text: string } | null;
@@ -17,6 +24,19 @@ export function Overlays({
   const { t, lang } = useApp();
   return (
     <>
+      <div class="gains">
+        {gains.map((g) => (
+          <div key={g.id} class={`gain ${g.kind}${g.by < 0 ? ' neg' : ''}`}>
+            <b>
+              {g.by > 0 ? '+' : ''}
+              {g.by}
+            </b>
+            <span>{t(g.kind)}</span>
+            {g.by > 0 &&
+              SPARKS.map(([dx, dy], i) => <i key={i} class="spark" style={{ '--dx': `${dx}px`, '--dy': `${dy}px` }} />)}
+          </div>
+        ))}
+      </div>
       <div class="toasts">
         {toasts.map((x) => (
           <div key={x.id} class={`toast ${x.kind}`}>

@@ -9,6 +9,7 @@ import {
   type Reason,
   type Subtask,
   type Task,
+  type Urgency,
 } from './model';
 import type { SceneId } from './scenes';
 import type { Op, Store } from './store/types';
@@ -25,7 +26,9 @@ export interface TaskForm {
   titleOther?: string;
   descOther?: string;
   scene: SceneId;
-  urgency: 'high' | 'low';
+  urgency: Urgency;
+  /** "YYYY-MM-DD" or empty for no due date */
+  due: string;
   importance: Level3;
   difficulty: Level3;
   reward: Level3;
@@ -101,6 +104,7 @@ export class Actions {
       title: await prepareText(f.title, undefined, f.titleOther),
       desc: await prepareText(f.desc, undefined, f.descOther),
       urgency: f.urgency,
+      due: f.due || undefined,
       importance: f.importance,
       difficulty: f.difficulty,
       reward: f.reward,
@@ -142,6 +146,7 @@ export class Actions {
       title: await prepareText(f.title, old.title, f.titleOther),
       desc: await prepareText(f.desc, old.desc, f.descOther),
       urgency: f.urgency,
+      due: f.due || undefined,
       importance: f.importance,
       difficulty: f.difficulty,
       reward: f.reward,

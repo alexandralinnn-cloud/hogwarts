@@ -17,6 +17,12 @@ import { TownMap } from './ui/TownMap';
 export type View = 'town' | 'board' | 'growth';
 export type Edit = { mode: 'new'; scene: SceneId } | { mode: 'edit'; id: string } | null;
 
+export interface GainPop {
+  id: number;
+  kind: 'exec' | 'growth';
+  by: number;
+}
+
 export interface Toast {
   id: number;
   text: string;
@@ -70,6 +76,7 @@ export function App({ store }: { store: Store }) {
   const [edit, setEdit] = useState<Edit>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
+  const [gains, setGains] = useState<GainPop[]>([]);
   const [levelUp, setLevelUp] = useState<{ kind: 'exec' | 'growth'; level: number } | null>(null);
   const [question, setQuestion] = useState<{ text: string; done: (ok: boolean) => void } | null>(null);
 
@@ -82,21 +89,23 @@ export function App({ store }: { store: Store }) {
   const snapRef = useRef(snap);
   snapRef.current = snap;
 
-  const celebrate = useCallback(
-    (gain: Gain | null) => {
-      if (!gain) return;
-      const s = snapRef.current.stats;
-      for (const kind of ['exec', 'growth'] as const) {
-        const by = gain[kind];
-        if (!by) continue;
-        toast(`${by > 0 ? '+' : ''}${by} ${translateUi(lang, kind)}`, by > 0 ? kind : 'minus');
-        const before = levelOf(s[kind]).level;
-        const after = levelOf(s[kind] + by).level;
-        if (after > before) setTimeout(() => setLevelUp({ kind, level: after }), 500);
-      }
-    },
-    [lang, toast],
-  );
+  /** Big "+20 Drive" in the middle of the screen (the bars at the top flash too), and level-ups. */
+  const celebrate = useCallback((gain: Gain | null) => {
+    if (!gain) return;
+    const s = snapRef.current.stats;
+    const items: GainPop[] = [];
+    for (const kind of ['exec', 'growth'] as const) {
+      const by = gain[kind];
+      if (!by) continue;
+      items.push({ id: Date.now() + Math.random(), kind, by });
+      const before = levelOf(s[kind]).level;
+      const after = levelOf(s[kind] + by).level;
+      if (after > before) setTimeout(() => setLevelUp({ kind, level: after }), 1400);
+    }
+    if (!items.length) return;
+    setGains((x) => [...x, ...items]);
+    setTimeout(() => setGains((x) => x.filter((g) => !items.includes(g))), 2000);
+  }, []);
 
   const canEdit = () => {
     if (snapRef.current.isOwner) return true;
@@ -175,6 +184,7 @@ export function App({ store }: { store: Store }) {
         {settingsOpen && <Settings />}
         <Overlays
           toasts={toasts}
+          gains={gains}
           levelUp={levelUp}
           closeLevelUp={() => setLevelUp(null)}
           question={question}

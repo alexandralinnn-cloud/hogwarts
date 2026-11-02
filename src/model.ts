@@ -20,12 +20,18 @@ export interface Subtask {
 
 export type Level3 = 1 | 2 | 3;
 
+/** high / low / not urgent */
+export type Urgency = 'high' | 'low' | 'none';
+const URGENCY_RANK: Record<Urgency, number> = { high: 2, low: 1, none: 0 };
+
 export interface Task {
   id: string;
   scene: SceneId;
   title: L10n;
   desc: L10n;
-  urgency: 'high' | 'low';
+  urgency: Urgency;
+  /** due date as a local calendar date, e.g. "2026-11-05" (optional) */
+  due?: string;
   importance: Level3;
   difficulty: Level3;
   reward: Level3;
@@ -123,13 +129,38 @@ export const txt = (t: L10n | null | undefined, lang: Lang) => (t ? t[lang] || t
 
 export const newId = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
 
-export const isUrgentOpen = (t: Task) => !t.done && t.urgency === 'high';
+/** Today's date as "YYYY-MM-DD" (local time), the format used for due dates. */
+export function isoDate(ts = Date.now()) {
+  const d = new Date(ts);
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
 
-/** Default order inside a list: urgent first, then important, then high reward, then easy, then newest. */
+/** Whole days from today until the due date: 0 = due today, negative = overdue, null = no due date. */
+export function daysLeft(due: string | undefined, now = Date.now()): number | null {
+  if (!due) return null;
+  const [y, m, d] = due.split('-').map(Number);
+  if (!y || !m || !d) return null;
+  const today = new Date(now);
+  const a = Date.UTC(today.getFullYear(), today.getMonth(), today.getDate());
+  return Math.round((Date.UTC(y, m - 1, d) - a) / 86400000);
+}
+
+export const ALERT_DAYS = 3;
+
+/** Shown on the town map: not done, urgency "high", and due within 3 days (or already overdue). */
+export function needsAlert(t: Task, now = Date.now()) {
+  if (t.done || t.urgency !== 'high') return false;
+  const left = daysLeft(t.due, now);
+  return left !== null && left <= ALERT_DAYS;
+}
+
+/** Default order: more urgent first, then nearest due date, then important, high reward, easy, newest. */
 export function sortTasks(list: Task[]) {
+  const dueRank = (t: Task) => daysLeft(t.due) ?? Number.POSITIVE_INFINITY;
   return [...list].sort(
     (a, b) =>
-      Number(b.urgency === 'high') - Number(a.urgency === 'high') ||
+      URGENCY_RANK[b.urgency] - URGENCY_RANK[a.urgency] ||
+      dueRank(a) - dueRank(b) ||
       b.importance - a.importance ||
       b.reward - a.reward ||
       a.difficulty - b.difficulty ||
