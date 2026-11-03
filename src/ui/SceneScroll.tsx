@@ -66,7 +66,8 @@ function SceneList() {
 function TaskDetail({ task }: { task: Task }) {
   const { lang, t, openTask, openScene, setEdit, canEdit, actions, celebrate, ask, snap, toast } = useApp();
   const [newSub, setNewSub] = useState('');
-  const [helpOpen, setHelpOpen] = useState(false);
+  // help menu: closed, the main list, or the choice of WhatsApp message
+  const [help, setHelp] = useState<null | 'main' | 'wa'>(null);
   const s = sceneById(task.scene);
   const subsDone = task.subtasks.filter((x) => x.done).length;
   const diffName = [t('easy'), t('medium'), t('hard')][task.difficulty - 1];
@@ -84,12 +85,21 @@ function TaskDetail({ task }: { task: Task }) {
     celebrate(actions.toggleComplete(task.id));
   };
 
+  const phone = (snap.settings.deanPhone || '').replace(/\D/g, '');
+  const taskName = task.title.en || task.title[task.title.src];
+  const messages = {
+    stuck: fillTask(snap.settings.deanMsg || DEFAULT_DEAN_MSG, taskName),
+    remind: fillTask(snap.settings.deanRemind || DEFAULT_DEAN_REMIND, lowerFirst(taskName)),
+  };
+
   const whatsapp = () => {
     if (!canEdit()) return;
-    const phone = (snap.settings.deanPhone || '').replace(/\D/g, '');
     if (!phone) return toast(t('needDean'));
-    const template = snap.settings.deanMsg || DEFAULT_DEAN_MSG;
-    const msg = template.split('{task}').join(task.title.en || task.title[task.title.src]);
+    setHelp('wa');
+  };
+
+  const sendWhatsapp = (msg: string) => {
+    setHelp(null);
     location.href = `whatsapp://send?phone=${phone}&text=${encodeURIComponent(msg)}`;
   };
 
@@ -112,11 +122,13 @@ function TaskDetail({ task }: { task: Task }) {
           <Icon name="chevronLeft" size={16} />
           {s.name[lang]}
         </button>
-        <div class="privrow">
-          <Icon name="lock" size={12} />
-          <span>{t('privateOnly')}</span>
-          <Toggle on={task.private} disabled={!snap.isOwner} onChange={(v) => canEdit() && actions.setPrivate(task.id, v)} />
-        </div>
+        {lang === 'zh' && (
+          <div class="privrow">
+            <Icon name="lock" size={12} />
+            <span>{t('privateOnly')}</span>
+            <Toggle on={task.private} disabled={!snap.isOwner} onChange={(v) => canEdit() && actions.setPrivate(task.id, v)} />
+          </div>
+        )}
         <button class="x" onClick={() => canEdit() && setEdit({ mode: 'edit', id: task.id })} aria-label={t('edit')}>
           <Icon name="pencil" size={20} />
         </button>
@@ -124,7 +136,7 @@ function TaskDetail({ task }: { task: Task }) {
           <Icon name="close" size={24} />
         </button>
       </div>
-      <div class="sheet-body" onClick={() => helpOpen && setHelpOpen(false)}>
+      <div class="sheet-body" onClick={() => help && setHelp(null)}>
         <h2 class="dt">
           {task.done && <span class="donemark">✓ </span>}
           {txt(task.title, lang)}
@@ -199,7 +211,7 @@ function TaskDetail({ task }: { task: Task }) {
           )}
         </div>
       </div>
-      {helpOpen && (
+      {help === 'main' && (
         <div class="help pbox">
           <button class="opt" onClick={whatsapp}>
             <Icon name="messageText" size={24} class="wa" />
@@ -217,11 +229,28 @@ function TaskDetail({ task }: { task: Task }) {
           </button>
         </div>
       )}
+      {help === 'wa' && (
+        <div class="help pbox">
+          <button class="opt head" onClick={() => setHelp('main')}>
+            <Icon name="chevronLeft" size={16} />
+            <span>{t('waPick')}</span>
+          </button>
+          {(['stuck', 'remind'] as const).map((k) => (
+            <button key={k} class="opt" onClick={() => sendWhatsapp(messages[k])}>
+              <Icon name="messageText" size={24} class="wa" />
+              <div>
+                <b>{t(k === 'stuck' ? 'waStuck' : 'waRemind')}</b>
+                <small class="preview">{messages[k]}</small>
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
       <div class="sheet-foot acts">
         <button class={`pbtn ${task.done ? 'dark' : 'green'} grow`} onClick={complete}>
           <Icon name="check" size={12} /> {task.done ? t('undoComplete') : t('complete')}
         </button>
-        <button class={`pbtn dark${helpOpen ? ' pressed' : ''}`} onClick={() => setHelpOpen(!helpOpen)}>
+        <button class={`pbtn dark${help ? ' pressed' : ''}`} onClick={() => setHelp(help ? null : 'main')}>
           <Icon name="message" size={12} /> {t('help')}
         </button>
       </div>
@@ -230,4 +259,12 @@ function TaskDetail({ task }: { task: Task }) {
 }
 
 export const DEFAULT_DEAN_MSG = 'Hi Dean, I\'m stuck on "{task}". Could you help me?';
+export const DEFAULT_DEAN_REMIND = 'Heyyy Dean, could you remind me to {task} today?';
+
+const fillTask = (template: string, name: string) => template.split('{task}').join(name);
+
+/** "Buy a printer" → "buy a printer" (keeps "I …", "MPF …" and other capitals that should stay) */
+function lowerFirst(s: string) {
+  return /^[A-Z][a-z]/.test(s) ? s[0].toLowerCase() + s.slice(1) : s;
+}
 export const DEFAULT_PC_SHORTCUT = 'PlanCoach';

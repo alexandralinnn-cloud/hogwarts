@@ -3,7 +3,7 @@ import { useApp } from '../app';
 import { dayKey, type BackupData } from '../model';
 import { Scroll, Segmented } from './Bits';
 import { Icon } from './Icon';
-import { DEFAULT_DEAN_MSG, DEFAULT_PC_SHORTCUT } from './SceneScroll';
+import { DEFAULT_DEAN_MSG, DEFAULT_DEAN_REMIND, DEFAULT_PC_SHORTCUT } from './SceneScroll';
 
 const PLANCOACH_STORE = 'https://apps.apple.com/app/id6748287561';
 
@@ -15,6 +15,7 @@ export function Settings() {
   const [busy, setBusy] = useState(false);
   const [phone, setPhone] = useState(snap.settings.deanPhone || '');
   const [msg, setMsg] = useState(snap.settings.deanMsg || DEFAULT_DEAN_MSG);
+  const [remind, setRemind] = useState(snap.settings.deanRemind || DEFAULT_DEAN_REMIND);
   const [shortcut, setShortcut] = useState(snap.settings.pcShortcut || DEFAULT_PC_SHORTCUT);
 
   const login = async () => {
@@ -29,7 +30,12 @@ export function Settings() {
   };
 
   const saveOwner = async () => {
-    await store.saveSettings({ deanPhone: phone.trim(), deanMsg: msg.trim() || DEFAULT_DEAN_MSG, pcShortcut: shortcut.trim() || DEFAULT_PC_SHORTCUT });
+    await store.saveSettings({
+      deanPhone: phone.trim(),
+      deanMsg: msg.trim() || DEFAULT_DEAN_MSG,
+      deanRemind: remind.trim() || DEFAULT_DEAN_REMIND,
+      pcShortcut: shortcut.trim() || DEFAULT_PC_SHORTCUT,
+    });
     toast(t('saved'));
   };
 
@@ -136,6 +142,8 @@ export function Settings() {
               <input class="fi" type="tel" placeholder="+852 …" value={phone} onInput={(e) => setPhone((e.target as HTMLInputElement).value)} />
               <label class="fl">{t('deanMsg')}</label>
               <textarea class="fi small" rows={2} value={msg} onInput={(e) => setMsg((e.target as HTMLTextAreaElement).value)} />
+              <label class="fl">{t('deanRemind')}</label>
+              <textarea class="fi small" rows={2} value={remind} onInput={(e) => setRemind((e.target as HTMLTextAreaElement).value)} />
 
               <h3 class="fh">{t('pcSection')}</h3>
               <label class="fl">{t('pcShortcut')}</label>

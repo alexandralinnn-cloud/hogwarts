@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef } from 'preact/hooks';
+import { useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { useApp } from '../app';
 import { dayKey, levelOf, titleOf, txt, type LogEntry } from '../model';
 import type { StrKey } from '../i18n';
@@ -48,7 +48,7 @@ export function Growth() {
           <span>
             <Icon name="fire" size={12} /> {t('streak', { n: stats.streak || 0 })}
           </span>
-          <span>{t('tasksDone', { n: done })}</span>
+          <span>{lang === 'en' && done === 1 ? '1 task completed' : t('tasksDone', { n: done })}</span>
         </div>
       </div>
       <Heatmap />
@@ -78,53 +78,94 @@ function when(ts: number, t: (k: StrKey) => string) {
   return `${d.getMonth() + 1}/${d.getDate()}`;
 }
 
+const WEEKS_ON_SCREEN = 5; // about one month
+const GAP = 6;
+const WEEKDAYS = { zh: ['一', '二', '三', '四', '五', '六', '日'], en: ['M', 'T', 'W', 'T', 'F', 'S', 'S'] };
+
+/** One year of lit days. Big squares: one screen shows about a month; swipe right-to-left to go back in time. */
 function Heatmap() {
   const { snap, t, lang } = useApp();
+  const outer = useRef<HTMLDivElement>(null);
   const box = useRef<HTMLDivElement>(null);
+  const [width, setWidth] = useState(0);
+
   useLayoutEffect(() => {
-    if (box.current) box.current.scrollLeft = box.current.scrollWidth;
+    const el = outer.current!;
+    const measure = () => setWidth(el.clientWidth);
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
   }, []);
 
-  // Columns are weeks (Sunday at the top); the last column holds today.
+  const labelW = 21;
+  const col = width ? Math.floor((width - labelW) / WEEKS_ON_SCREEN) : 0;
+  const cell = Math.max(24, col - GAP);
+
+  useLayoutEffect(() => {
+    if (box.current) box.current.scrollLeft = box.current.scrollWidth;
+  }, [col]);
+
+  // Columns are weeks (Monday at the top); the last column holds today.
   const today = new Date();
   today.setHours(12, 0, 0, 0);
+  const mondayOffset = (today.getDay() + 6) % 7;
   const start = new Date(today);
-  start.setDate(start.getDate() - today.getDay() - (WEEKS - 1) * 7);
-  const cells: { key: string; cls: string; month?: number }[] = [];
+  start.setDate(start.getDate() - mondayOffset - (WEEKS - 1) * 7);
+  const todayKey = dayKey();
+  const cells: { key: string; cls: string; day: number }[] = [];
   const months: { col: number; label: string }[] = [];
-  let lastMonth = -1;
   for (let w = 0; w < WEEKS; w++) {
     for (let d = 0; d < 7; d++) {
       const day = new Date(start);
       day.setDate(start.getDate() + w * 7 + d);
-      if (d === 0 && day.getMonth() !== lastMonth) {
-        lastMonth = day.getMonth();
-        months.push({ col: w, label: lang === 'zh' ? `${lastMonth + 1}月` : day.toLocaleString('en-GB', { month: 'short' }) });
+      if ((w === 0 && d === 0) || day.getDate() === 1) {
+        const m = day.getMonth();
+        const label = lang === 'zh' ? `${m + 1}月` : day.toLocaleString('en-GB', { month: 'short' });
+        if (months[months.length - 1]?.col === w) months[months.length - 1].label = label;
+        else months.push({ col: w, label });
       }
       const k = dayKey(day.getTime());
       const a = snap.stats.activity[k];
       const future = day > today;
       const cls = future ? 'fut' : (a?.t || 0) > 0 ? 'full' : (a?.s || 0) > 0 ? 'half' : '';
-      cells.push({ key: k, cls: cls + (k === dayKey() ? ' today' : '') });
+      cells.push({ key: k, cls: cls + (k === todayKey ? ' today' : ''), day: day.getDate() });
     }
   }
 
   return (
     <div class="card pdark">
       <div class="ct">{t('heatmap')}</div>
-      <div class="hmwrap" ref={box}>
-        <div class="hm-m" style={{ width: WEEKS * 12 }}>
-          {months.map((m) => (
-            <span key={m.col} style={{ left: m.col * 12 }}>
-              {m.label}
-            </span>
-          ))}
-        </div>
-        <div class="hm" style={{ width: WEEKS * 12 }}>
-          {cells.map((c) => (
-            <i key={c.key} class={c.cls} />
-          ))}
-        </div>
+      <div class="hmbox" ref={outer}>
+        {col > 0 && (
+          <>
+            <div class="hmdays" style={{ width: labelW, gap: GAP, gridAutoRows: cell }}>
+              {WEEKDAYS[lang].map((d, i) => (
+                <span key={i}>{d}</span>
+              ))}
+            </div>
+            <div class="hmwrap" ref={box}>
+              <div class="hm-m sticky" style={{ width: WEEKS * col }}>
+                {/* each month label sticks to the left edge while its weeks are on screen */}
+                {months.map((m, i) => (
+                  <div key={m.col} class="mseg" style={{ width: ((months[i + 1]?.col ?? WEEKS) - m.col) * col }}>
+                    <span>{m.label}</span>
+                  </div>
+                ))}
+              </div>
+              <div
+                class="hm big"
+                style={{ width: WEEKS * col, gap: GAP, gridTemplateRows: `repeat(7, ${cell}px)`, gridAutoColumns: `${cell}px` }}
+              >
+                {cells.map((c) => (
+                  <i key={c.key} class={c.cls}>
+                    {!c.cls.startsWith('fut') && <span>{c.day}</span>}
+                  </i>
+                ))}
+              </div>
+            </div>
+          </>
+        )}
       </div>
       <div class="legend">
         <i />

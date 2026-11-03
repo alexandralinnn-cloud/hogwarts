@@ -124,7 +124,7 @@ export function TaskRow({ task, showScene = false, onOpen }: { task: Task; showS
               {t('subtasks')} {subsDone}/{task.subtasks.length}
             </span>
           )}
-          {task.private && (
+          {task.private && lang === 'zh' && (
             <span class="lock">
               <Icon name="lock" size={12} /> {t('privateOnly')}
             </span>
@@ -196,5 +196,29 @@ export function DueTag({ due }: { due?: string }) {
       <Icon name="calendar" size={12} />
       {text}
     </span>
+  );
+}
+
+// a 9 × 9 pixel star, drawn square by square so it stays crisp
+const STAR_ROWS = [
+  '....X....',
+  '...XXX...',
+  'XXXXXXXXX',
+  '.XXXXXXX.',
+  '..XXXXX..',
+  '..XXXXX..',
+  '.XXX.XXX.',
+  '.XX...XX.',
+  'X.......X',
+];
+const STAR_PATH = STAR_ROWS.flatMap((row, y) =>
+  [...row].map((c, x) => (c === 'X' ? `M${x} ${y}h1v1h-1z` : '')).filter(Boolean),
+).join('');
+
+export function PixelStar({ size = 18 }: { size?: number }) {
+  return (
+    <svg class="pstar" width={size} height={size} viewBox="0 0 9 9" shape-rendering="crispEdges" aria-hidden="true">
+      <path d={STAR_PATH} fill="currentColor" />
+    </svg>
   );
 }

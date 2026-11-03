@@ -2,7 +2,7 @@ import { useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { useApp } from '../app';
 import { needsAlert } from '../model';
 import { IMG_H, IMG_W, SCENES } from '../scenes';
-import { TOWN_URL } from './Bits';
+import { PixelStar, TOWN_URL } from './Bits';
 
 const pct = (v: number, of: number) => `${(v / of) * 100}%`;
 
@@ -36,6 +36,8 @@ export function TownMap() {
   }, [w, h]);
 
   const urgent = (id: string) => snap.tasks.filter((t) => t.scene === id && needsAlert(t)).length;
+  // important = highest importance (3) and not done yet; shown as a quiet star on the name plate
+  const important = (id: string) => snap.tasks.filter((t) => t.scene === id && !t.done && t.importance === 3).length;
 
   return (
     <div class="map" ref={box}>
@@ -44,6 +46,7 @@ export function TownMap() {
           <img src={TOWN_URL} alt="" draggable={false} />
           {SCENES.map((s) => {
             const n = urgent(s.id);
+            const stars = important(s.id);
             const [x1, y1, x2, y2] = s.box;
             const cx = (x1 + x2) / 2;
             const cy = (y1 + y2) / 2;
@@ -74,6 +77,12 @@ export function TownMap() {
                   style={{ left: pct(s.plate[0], IMG_W), top: pct(s.plate[1], IMG_H) }}
                 >
                   {s.name[lang]}
+                  {stars > 0 && (
+                    <span class="star">
+                      <PixelStar size={18} />
+                      {stars}
+                    </span>
+                  )}
                 </button>
                 {n > 0 && (
                   <button

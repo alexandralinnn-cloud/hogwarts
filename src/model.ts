@@ -78,6 +78,7 @@ export interface LogEntry {
 export interface OwnerSettings {
   deanPhone?: string;
   deanMsg?: string;
+  deanRemind?: string;
   pcShortcut?: string;
 }
 

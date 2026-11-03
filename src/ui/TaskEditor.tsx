@@ -169,12 +169,14 @@ export function TaskEditor() {
             <label class="fl">{t('reward')}</label>
             <Segmented value={f.reward} onChange={(v) => set('reward', v)} options={levels.map((n) => ({ value: n, label: <Pips n={n} kind="co" /> }))} />
           </div>
-          <div class="frow">
-            <label class="fl">
-              <Icon name="lock" size={12} /> {t('privateOnly')}
-            </label>
-            <Toggle on={f.private} onChange={(v) => set('private', v)} />
-          </div>
+          {lang === 'zh' && (
+            <div class="frow">
+              <label class="fl">
+                <Icon name="lock" size={12} /> {t('privateOnly')}
+              </label>
+              <Toggle on={f.private} onChange={(v) => set('private', v)} />
+            </div>
+          )}
 
           {!existing && (
             <>
