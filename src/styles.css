@@ -395,3 +395,6 @@ input, textarea { font-family: var(--f); font-size: 16px; -webkit-user-select: t
 .edrow .fi { flex: 1; min-width: 0; padding: 4px 8px; }
 .btnrow.end { justify-content: flex-end; }
 .addsub[hidden] { display: none; }
+
+/* heatmap: the last 3 months, squares sized to fill the card */
+.hm3 { width: 100%; }

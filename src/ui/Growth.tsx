@@ -1,10 +1,9 @@
-import { useLayoutEffect, useRef } from 'preact/hooks';
+import { useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { useApp } from '../app';
 import { dayKey, levelOf, titleOf, txt, type LogEntry } from '../model';
 import type { StrKey } from '../i18n';
 import { Icon } from './Icon';
 
-const WEEKS = 53;
 const REASON: Record<LogEntry['reason'], StrKey> = {
   complete: 'rComplete',
   uncomplete: 'rUncomplete',
@@ -81,25 +80,34 @@ function when(ts: number, t: (k: StrKey) => string) {
   return `${d.getMonth() + 1}/${d.getDate()}`;
 }
 
-const COL = 12; // 9px square + 3px gap
+const HM_WEEKS = 13; // about 3 months
+const GAP = 3;
 
-/** One year of lit days as small plain squares (weeks are columns, Monday on top). Swipe to see earlier months. */
+/** The last 3 months of lit days as plain squares (weeks are columns, Monday on top), filling the card width. */
 function Heatmap() {
   const { snap, t, lang } = useApp();
   const box = useRef<HTMLDivElement>(null);
+  const [width, setWidth] = useState(0);
   useLayoutEffect(() => {
-    if (box.current) box.current.scrollLeft = box.current.scrollWidth;
+    const el = box.current!;
+    const measure = () => setWidth(el.clientWidth);
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
   }, []);
+  const col = width ? Math.floor((width + GAP) / HM_WEEKS) : 0;
+  const cell = col - GAP;
 
   const today = new Date();
   today.setHours(12, 0, 0, 0);
   const mondayOffset = (today.getDay() + 6) % 7;
   const start = new Date(today);
-  start.setDate(start.getDate() - mondayOffset - (WEEKS - 1) * 7);
+  start.setDate(start.getDate() - mondayOffset - (HM_WEEKS - 1) * 7);
   const todayKey = dayKey();
   const cells: { key: string; cls: string }[] = [];
   const months: { col: number; label: string }[] = [];
-  for (let w = 0; w < WEEKS; w++) {
+  for (let w = 0; w < HM_WEEKS; w++) {
     for (let d = 0; d < 7; d++) {
       const day = new Date(start);
       day.setDate(start.getDate() + w * 7 + d);
@@ -115,24 +123,29 @@ function Heatmap() {
       cells.push({ key: k, cls: cls + (k === todayKey ? ' today' : '') });
     }
   }
+  // a month name that would sit on top of the next one is dropped (only the first column can be that short)
+  const shown = months.filter((m, i) => (months[i + 1]?.col ?? HM_WEEKS) - m.col >= 2 || i === months.length - 1);
 
   return (
     <div class="card pdark">
       <div class="ct">{t('heatmap')}</div>
-      <div class="hmwrap" ref={box}>
-        <div class="hm-m sticky" style={{ width: WEEKS * COL }}>
-          {/* each month label sticks to the left edge while its weeks are on screen */}
-          {months.map((m, i) => (
-            <div key={m.col} class="mseg" style={{ width: ((months[i + 1]?.col ?? WEEKS) - m.col) * COL }}>
-              <span>{m.label}</span>
+      <div class="hm3" ref={box}>
+        {col > 0 && (
+          <>
+            <div class="hm-m">
+              {shown.map((m) => (
+                <span key={m.col} style={{ left: m.col * col }}>
+                  {m.label}
+                </span>
+              ))}
             </div>
-          ))}
-        </div>
-        <div class="hm" style={{ width: WEEKS * COL }}>
-          {cells.map((c) => (
-            <i key={c.key} class={c.cls} />
-          ))}
-        </div>
+            <div class="hm" style={{ gap: GAP, gridTemplateRows: `repeat(7, ${cell}px)`, gridAutoColumns: `${cell}px` }}>
+              {cells.map((c) => (
+                <i key={c.key} class={c.cls} style={{ width: cell, height: cell }} />
+              ))}
+            </div>
+          </>
+        )}
       </div>
       <div class="legend">
         <i />
