@@ -3,6 +3,7 @@ import { useApp } from '../app';
 import { dayKey, type BackupData } from '../model';
 import { Scroll, Segmented } from './Bits';
 import { Icon } from './Icon';
+import { DEFAULT_MSG_HARD, DEFAULT_MSG_LEVEL, DEFAULT_MSG_URGENT, newTopic, notifyDean } from '../notify';
 import { DEFAULT_DEAN_MSG, DEFAULT_DEAN_REMIND, DEFAULT_PC_SHORTCUT } from './SceneScroll';
 
 const PLANCOACH_STORE = 'https://apps.apple.com/app/id6748287561';
@@ -17,6 +18,10 @@ export function Settings() {
   const [msg, setMsg] = useState(snap.settings.deanMsg || DEFAULT_DEAN_MSG);
   const [remind, setRemind] = useState(snap.settings.deanRemind || DEFAULT_DEAN_REMIND);
   const [shortcut, setShortcut] = useState(snap.settings.pcShortcut || DEFAULT_PC_SHORTCUT);
+  const [topic, setTopic] = useState(snap.settings.ntfyTopic || '');
+  const [msgHard, setMsgHard] = useState(snap.settings.msgHardDone || DEFAULT_MSG_HARD);
+  const [msgLevel, setMsgLevel] = useState(snap.settings.msgLevelUp || DEFAULT_MSG_LEVEL);
+  const [msgUrgent, setMsgUrgent] = useState(snap.settings.msgUrgent || DEFAULT_MSG_URGENT);
 
   const login = async () => {
     setBusy(true);
@@ -35,8 +40,27 @@ export function Settings() {
       deanMsg: msg.trim() || DEFAULT_DEAN_MSG,
       deanRemind: remind.trim() || DEFAULT_DEAN_REMIND,
       pcShortcut: shortcut.trim() || DEFAULT_PC_SHORTCUT,
+      ntfyTopic: topic.trim(),
+      msgHardDone: msgHard.trim() || DEFAULT_MSG_HARD,
+      msgLevelUp: msgLevel.trim() || DEFAULT_MSG_LEVEL,
+      msgUrgent: msgUrgent.trim() || DEFAULT_MSG_URGENT,
     });
     toast(t('saved'));
+  };
+
+  const copyTopic = async () => {
+    try {
+      await navigator.clipboard.writeText(topic.trim());
+      toast(t('ntfyCopied'));
+    } catch {
+      /* the name is visible in the box anyway */
+    }
+  };
+
+  const testNtfy = async () => {
+    if (!topic.trim()) return;
+    const ok = await notifyDean({ ntfyTopic: topic.trim() }, { kind: 'test' });
+    toast(ok ? t('ntfyTestOk') : t('ntfyTestFail'));
   };
 
   const exportBackup = async () => {
@@ -144,6 +168,29 @@ export function Settings() {
               <textarea class="fi small" rows={2} value={msg} onInput={(e) => setMsg((e.target as HTMLTextAreaElement).value)} />
               <label class="fl">{t('deanRemind')}</label>
               <textarea class="fi small" rows={2} value={remind} onInput={(e) => setRemind((e.target as HTMLTextAreaElement).value)} />
+
+              <h3 class="fh">{t('ntfySection')}</h3>
+              <p class="note">{t('ntfyIntro')}</p>
+              <label class="fl">{t('ntfyTopic')}</label>
+              <input class="fi" value={topic} autocapitalize="off" autocorrect="off" spellcheck={false} onInput={(e) => setTopic((e.target as HTMLInputElement).value)} />
+              <div class="btnrow">
+                <button class="pbtn dark small" onClick={() => setTopic(newTopic())}>
+                  {t('ntfyNew')}
+                </button>
+                <button class="pbtn dark small" onClick={copyTopic} disabled={!topic.trim()}>
+                  {t('ntfyCopy')}
+                </button>
+                <button class="pbtn dark small" onClick={testNtfy} disabled={!topic.trim()}>
+                  {t('ntfyTest')}
+                </button>
+              </div>
+              <p class="note">{t('ntfySteps')}</p>
+              <label class="fl">{t('msgHardDone')}</label>
+              <textarea class="fi small" rows={2} value={msgHard} onInput={(e) => setMsgHard((e.target as HTMLTextAreaElement).value)} />
+              <label class="fl">{t('msgLevelUp')}</label>
+              <textarea class="fi small" rows={2} value={msgLevel} onInput={(e) => setMsgLevel((e.target as HTMLTextAreaElement).value)} />
+              <label class="fl">{t('msgUrgent')}</label>
+              <textarea class="fi small" rows={3} value={msgUrgent} onInput={(e) => setMsgUrgent((e.target as HTMLTextAreaElement).value)} />
 
               <h3 class="fh">{t('pcSection')}</h3>
               <label class="fl">{t('pcShortcut')}</label>

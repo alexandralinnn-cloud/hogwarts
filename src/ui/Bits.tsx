@@ -71,8 +71,12 @@ export function StatBar({ kind, big = false }: { kind: 'exec' | 'growth'; big?: 
           Lv.{lv.level} {titleOf(lv.level, lang)}
         </em>
       </div>
-      <div class={`bar ${kind === 'growth' ? 'g' : ''} ${big ? 'big' : ''}`}>
+      <div class={`bar num ${kind === 'growth' ? 'g' : ''} ${big ? 'big' : ''}`}>
         <i style={{ width: `${Math.max(0, Math.min(100, (lv.into / lv.span) * 100))}%` }} />
+        {/* points inside this level, e.g. 93/150 */}
+        <span class="barnum">
+          {lv.into}/{lv.span}
+        </span>
       </div>
     </div>
   );

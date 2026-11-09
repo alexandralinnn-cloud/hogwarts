@@ -1,6 +1,6 @@
 import { createContext } from 'preact';
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'preact/hooks';
-import { Actions, type Gain } from './actions';
+import { Actions, type Cheer, type Gain } from './actions';
 import { translateUi, type StrKey } from './i18n';
 import { levelOf, type Lang } from './model';
 import type { SceneId } from './scenes';
@@ -22,6 +22,11 @@ export interface GainPop {
   kind: 'exec' | 'growth';
   by: number;
 }
+
+/** Windows shown one after another: first "why you got points", then any level-up. */
+export type Popup =
+  | { id: number; kind: 'cheer'; cheer: Cheer; gain: Gain }
+  | { id: number; kind: 'level'; stat: 'exec' | 'growth'; level: number };
 
 export interface Toast {
   id: number;
@@ -77,7 +82,7 @@ export function App({ store }: { store: Store }) {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [gains, setGains] = useState<GainPop[]>([]);
-  const [levelUp, setLevelUp] = useState<{ kind: 'exec' | 'growth'; level: number } | null>(null);
+  const [popups, setPopups] = useState<Popup[]>([]);
   const [question, setQuestion] = useState<{ text: string; done: (ok: boolean) => void } | null>(null);
 
   const toast = useCallback((text: string, kind: Toast['kind'] = 'info') => {
@@ -89,23 +94,37 @@ export function App({ store }: { store: Store }) {
   const snapRef = useRef(snap);
   snapRef.current = snap;
 
-  /** Big "+20 Drive" in the middle of the screen (the bars at the top flash too), and level-ups. */
-  const celebrate = useCallback((gain: Gain | null) => {
-    if (!gain) return;
-    const s = snapRef.current.stats;
-    const items: GainPop[] = [];
-    for (const kind of ['exec', 'growth'] as const) {
-      const by = gain[kind];
-      if (!by) continue;
-      items.push({ id: Date.now() + Math.random(), kind, by });
-      const before = levelOf(s[kind]).level;
-      const after = levelOf(s[kind] + by).level;
-      if (after > before) setTimeout(() => setLevelUp({ kind, level: after }), 1400);
-    }
-    if (!items.length) return;
-    setGains((x) => [...x, ...items]);
-    setTimeout(() => setGains((x) => x.filter((g) => !items.includes(g))), 2000);
-  }, []);
+  /**
+   * Big "+20 Drive" in the middle of the screen (the bars at the top flash too), then a window
+   * explaining the points with a few encouraging words, then any level-up. Level-ups are sent to Dean.
+   */
+  const celebrate = useCallback(
+    (gain: Gain | null) => {
+      if (!gain) return;
+      const s = snapRef.current.stats;
+      const items: GainPop[] = [];
+      const windows: Popup[] = [];
+      if (gain.cheer) windows.push({ id: Date.now() + Math.random(), kind: 'cheer', cheer: gain.cheer, gain });
+      for (const kind of ['exec', 'growth'] as const) {
+        const by = gain[kind];
+        if (!by) continue;
+        items.push({ id: Date.now() + Math.random(), kind, by });
+        const before = levelOf(s[kind]).level;
+        const after = levelOf(s[kind] + by).level;
+        if (after > before) {
+          windows.push({ id: Date.now() + Math.random(), kind: 'level', stat: kind, level: after });
+          actions.notifyLevelUp(kind, after);
+        }
+      }
+      if (items.length) {
+        setGains((x) => [...x, ...items]);
+        setTimeout(() => setGains((x) => x.filter((g) => !items.includes(g))), 2000);
+      }
+      // windows wait until the big "+points" has floated away
+      if (windows.length) setTimeout(() => setPopups((q) => [...q, ...windows]), items.length ? 1800 : 0);
+    },
+    [actions],
+  );
 
   const canEdit = () => {
     if (snapRef.current.isOwner) return true;
@@ -185,8 +204,8 @@ export function App({ store }: { store: Store }) {
         <Overlays
           toasts={toasts}
           gains={gains}
-          levelUp={levelUp}
-          closeLevelUp={() => setLevelUp(null)}
+          popup={popups[0] || null}
+          closePopup={() => setPopups((q) => q.slice(1))}
           question={question}
           answer={(ok) => {
             question?.done(ok);

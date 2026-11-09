@@ -20,7 +20,10 @@ export interface Subtask {
 
 export type Level3 = 1 | 2 | 3;
 
-/** high / low / not urgent */
+/**
+ * Stored values stay the same so existing tasks keep working; on screen they read
+ * high = 高 / High, low = 中 / Medium, none = 低 / Low.
+ */
 export type Urgency = 'high' | 'low' | 'none';
 const URGENCY_RANK: Record<Urgency, number> = { high: 2, low: 1, none: 0 };
 
@@ -46,6 +49,8 @@ export interface Task {
   splitAwarded?: boolean;
   /** some text still waits for translation */
   needsTr?: boolean;
+  /** Dean has already been told this hard task was finished */
+  notifiedDone?: boolean;
 }
 
 export interface DayActivity {
@@ -61,6 +66,8 @@ export interface Stats {
   addDay?: string;
   addCount?: number;
   activity: Record<string, DayActivity>;
+  /** highest level Dean has been told about, so undo/redo never repeats a level-up message */
+  lvNotified?: { exec?: number; growth?: number };
 }
 
 export type Reason = 'complete' | 'uncomplete' | 'sub' | 'unsub' | 'split' | 'open' | 'add' | 'streak';
@@ -79,6 +86,11 @@ export interface OwnerSettings {
   deanPhone?: string;
   deanMsg?: string;
   deanRemind?: string;
+  /** ntfy channel name Dean subscribes to; empty = don't notify */
+  ntfyTopic?: string;
+  msgHardDone?: string;
+  msgLevelUp?: string;
+  msgUrgent?: string;
   pcShortcut?: string;
 }
 

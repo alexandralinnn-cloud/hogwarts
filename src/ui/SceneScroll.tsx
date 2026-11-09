@@ -1,4 +1,4 @@
-import { useState } from 'preact/hooks';
+import { useRef, useState } from 'preact/hooks';
 import { useApp } from '../app';
 import { sortTasks, txt, type Task } from '../model';
 import { sceneById } from '../scenes';
@@ -68,6 +68,47 @@ function TaskDetail({ task }: { task: Task }) {
   const [newSub, setNewSub] = useState('');
   // help menu: closed, the main list, or the choice of WhatsApp message
   const [help, setHelp] = useState<null | 'main' | 'wa'>(null);
+  // "整理" mode: edit step names and drag them into a new order
+  const [arranging, setArranging] = useState(false);
+  const [draft, setDraft] = useState<{ id: string; text: string }[]>([]);
+  const [dragId, setDragId] = useState<string | null>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+
+  const startArrange = () => {
+    if (!canEdit()) return;
+    setDraft(task.subtasks.map((x) => ({ id: x.id, text: x.title[x.title.src] })));
+    setArranging(true);
+  };
+  const saveArrange = async () => {
+    setArranging(false);
+    await actions.editSubtasks(task.id, draft);
+  };
+  const startDrag = (e: PointerEvent, id: string) => {
+    e.preventDefault();
+    (e.currentTarget as Element).setPointerCapture(e.pointerId);
+    setDragId(id);
+  };
+  const moveDrag = (e: PointerEvent) => {
+    if (!dragId || !listRef.current) return;
+    const rows = [...listRef.current.querySelectorAll<HTMLElement>('.edrow')];
+    let target = rows.length;
+    for (let i = 0; i < rows.length; i++) {
+      const r = rows[i].getBoundingClientRect();
+      if (e.clientY < r.top + r.height / 2) {
+        target = i;
+        break;
+      }
+    }
+    setDraft((list) => {
+      const from = list.findIndex((x) => x.id === dragId);
+      const to = from < target ? target - 1 : target;
+      if (from < 0 || from === to) return list;
+      const next = [...list];
+      const [item] = next.splice(from, 1);
+      next.splice(to, 0, item);
+      return next;
+    });
+  };
   const s = sceneById(task.scene);
   const subsDone = task.subtasks.filter((x) => x.done).length;
   const diffName = [t('easy'), t('medium'), t('hard')][task.difficulty - 1];
@@ -173,10 +214,53 @@ function TaskDetail({ task }: { task: Task }) {
             {t('doneAt')} {new Date(task.doneAt).toLocaleDateString(lang === 'zh' ? 'zh-CN' : 'en-GB')}
           </p>
         )}
-        <div class="sec">
-          {t('subtasks')} · {subsDone}/{task.subtasks.length}
+        <div class="sec secrow">
+          <span>
+            {t('subtasks')} · {subsDone}/{task.subtasks.length}
+          </span>
+          {snap.isOwner && task.subtasks.length > 0 && !arranging && (
+            <button class="secbtn" onClick={startArrange}>
+              <Icon name="menu" size={12} /> {t('arrange')}
+            </button>
+          )}
         </div>
-        {task.subtasks.map((x) => (
+        {arranging && (
+          <>
+            <div class="arrlist" ref={listRef}>
+              {draft.map((d) => (
+                <div key={d.id} class={`edrow${dragId === d.id ? ' dragging' : ''}`}>
+                  <span
+                    class="handle"
+                    onPointerDown={(e) => startDrag(e, d.id)}
+                    onPointerMove={moveDrag}
+                    onPointerUp={() => setDragId(null)}
+                    onPointerCancel={() => setDragId(null)}
+                  >
+                    <Icon name="menu" size={16} />
+                  </span>
+                  <input
+                    class="fi small"
+                    value={d.text}
+                    onInput={(e) => {
+                      const v = (e.target as HTMLInputElement).value;
+                      setDraft((list) => list.map((x) => (x.id === d.id ? { ...x, text: v } : x)));
+                    }}
+                  />
+                </div>
+              ))}
+            </div>
+            <p class="note">{t('arrangeHint')}</p>
+            <div class="btnrow end">
+              <button class="pbtn dark small" onClick={() => setArranging(false)}>
+                {t('cancel')}
+              </button>
+              <button class="pbtn green small" onClick={saveArrange}>
+                <Icon name="check" size={12} /> {t('arrangeDone')}
+              </button>
+            </div>
+          </>
+        )}
+        {!arranging && task.subtasks.map((x) => (
           <div key={x.id} class={`st${x.done ? ' done' : ''}`}>
             <button class="stbox" onClick={() => canEdit() && celebrate(actions.toggleSubtask(task.id, x.id))}>
               {x.done && <Icon name="check" size={12} />}
@@ -195,7 +279,7 @@ function TaskDetail({ task }: { task: Task }) {
             )}
           </div>
         ))}
-        <div class="addsub">
+        <div class="addsub" hidden={arranging}>
           <Icon name="plus" size={12} />
           <input
             value={newSub}

@@ -1,8 +1,11 @@
 import {
+  ALERT_DAYS,
   dayKey,
   dayKeyOffset,
+  daysLeft,
   newId,
   POINTS,
+  titleOf,
   type L10n,
   type Level3,
   type LogEntry,
@@ -13,11 +16,27 @@ import {
 } from './model';
 import type { SceneId } from './scenes';
 import type { Op, Store } from './store/types';
+import { flushDeanQueue, notifyDean, type DeanEvent } from './notify';
 import { needsTranslation, prepareText, translateText } from './translate';
+
+/** What happened, so the screen can explain the points and cheer you on. */
+export type Cheer =
+  | { type: 'open'; streak: number; bonus: boolean }
+  | { type: 'complete'; title: L10n; difficulty: Level3 }
+  | { type: 'hardSub'; title: L10n; sub: L10n };
 
 export interface Gain {
   exec: number;
   growth: number;
+  cheer?: Cheer;
+}
+
+/** Task name for messages to Dean (he reads English). */
+const englishName = (t: Task) => t.title.en || t.title[t.title.src];
+
+function dueInEnglish(due: string) {
+  const [y, m, d] = due.split('-').map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
 }
 
 export interface TaskForm {
@@ -63,6 +82,11 @@ export class Actions {
     this.store.commit(ops).catch((e) => console.error('save failed', e));
   }
 
+  /** Sends Dean a message in the background (only if a ntfy channel is set in Settings). */
+  private tellDean(ev: DeanEvent) {
+    notifyDean(this.store.get().settings, ev).catch(() => {});
+  }
+
   private task(id: string) {
     const stored = this.store.get().tasks.find((t) => t.id === id);
     if (!this.recent.has(id)) return stored;
@@ -86,12 +110,24 @@ export class Actions {
       logOp('growth', POINTS.open, 'open', null),
     ];
     let growth = POINTS.open;
-    if (streak % POINTS.streakEvery === 0) {
+    const bonus = streak % POINTS.streakEvery === 0;
+    if (bonus) {
       ops.push({ t: 'pts', kind: 'growth', by: POINTS.streakBonus }, logOp('growth', POINTS.streakBonus, 'streak', null));
       growth += POINTS.streakBonus;
     }
     this.save(ops);
-    return { exec: 0, growth };
+    flushDeanQueue().catch(() => {});
+    return { exec: 0, growth, cheer: { type: 'open', streak, bonus } };
+  }
+
+  /** Tells Dean about a new level, once per level (undo + redo does not repeat it). */
+  notifyLevelUp(kind: 'exec' | 'growth', level: number) {
+    const s = this.store.get();
+    if (!s.isOwner) return;
+    const told = s.stats.lvNotified?.[kind] ?? 0;
+    if (level <= told) return;
+    this.save([{ t: 'stats', patch: { lvNotified: { ...s.stats.lvNotified, [kind]: level } } }]);
+    this.tellDean({ kind: 'level', stat: kind === 'exec' ? 'Drive' : 'Growth', level, title: titleOf(level, 'en') });
   }
 
   async createTask(f: TaskForm): Promise<{ gain: Gain; id: string }> {
@@ -133,7 +169,15 @@ export class Actions {
     task.needsTr = hasPending(task);
     ops.unshift({ t: 'task', task });
     this.save(ops);
-    this.translateLater(task.id);
+    const translated = this.translateLater(task.id);
+    // A new high-urgency task due within 3 days: tell Dean (after the English name is ready).
+    const left = daysLeft(task.due);
+    if (task.urgency === 'high' && task.due && left !== null && left <= ALERT_DAYS && !task.private) {
+      translated.finally(() => {
+        const latest = this.task(task.id) ?? task;
+        this.tellDean({ kind: 'urgent', task: englishName(latest), due: dueInEnglish(task.due!) });
+      });
+    }
     return { gain, id: task.id };
   }
 
@@ -175,13 +219,17 @@ export class Actions {
       const award = POINTS.complete[t.difficulty];
       const now = Date.now();
       const task: Task = { ...t, done: true, doneAt: now, award, updatedAt: now };
+      // Finishing a hard (困难) task that is not private: tell Dean, once per task.
+      const tell = t.difficulty === 3 && !t.private && !t.notifiedDone;
+      if (tell) task.notifiedDone = true;
       this.save([
         { t: 'task', task },
         { t: 'pts', kind: 'exec', by: award },
         { t: 'act', day: dayKey(now), k: 't', by: 1 },
         logOp('exec', award, 'complete', task),
       ]);
-      return { exec: award, growth: 0 };
+      if (tell) this.tellDean({ kind: 'hard', task: englishName(t) });
+      return { exec: award, growth: 0, cheer: { type: 'complete', title: t.title, difficulty: t.difficulty } };
     }
     const back = t.award || 0;
     const task: Task = { ...t, done: false, doneAt: undefined, award: undefined, updatedAt: Date.now() };
@@ -234,7 +282,31 @@ export class Actions {
     const task: Task = { ...t, subtasks: t.subtasks.map((x) => (x.id === subId ? next : x)), updatedAt: now };
     ops.unshift({ t: 'task', task });
     this.save(ops);
-    return { exec, growth: 0 };
+    // a step of a hard task gets its own cheer window
+    const cheer: Cheer | undefined = !sub.done && t.difficulty === 3 ? { type: 'hardSub', title: t.title, sub: sub.title } : undefined;
+    return { exec, growth: 0, cheer };
+  }
+
+  /** Saves edited step names and a new step order (no points change). */
+  async editSubtasks(id: string, items: { id: string; text: string }[]) {
+    const t = this.task(id);
+    if (!t) return;
+    const byId = new Map(t.subtasks.map((x) => [x.id, x]));
+    const ordered: Subtask[] = [];
+    for (const it of items) {
+      const sub = byId.get(it.id);
+      if (!sub) continue;
+      byId.delete(it.id);
+      const text = it.text.trim();
+      ordered.push(text && text !== sub.title[sub.title.src] ? { ...sub, title: await prepareText(text, sub.title) } : sub);
+    }
+    const latest = this.task(id) ?? t;
+    // steps added meanwhile (not in the edited list) stay at the end
+    const extra = latest.subtasks.filter((x) => byId.has(x.id));
+    const task: Task = { ...latest, subtasks: [...ordered, ...extra], updatedAt: Date.now() };
+    task.needsTr = hasPending(task);
+    this.save([{ t: 'task', task }]);
+    this.translateLater(id);
   }
 
   /** Deleting a ticked step takes its +3 back (so steps can't be farmed). */

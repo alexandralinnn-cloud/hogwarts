@@ -34,11 +34,14 @@ export function Growth() {
                 <b>
                   {t(kind)} · {titleOf(lv.level, lang)}
                 </b>
-                <div class={`bar big ${kind === 'growth' ? 'g' : ''}`}>
+                <div class={`bar big num ${kind === 'growth' ? 'g' : ''}`}>
                   <i style={{ width: `${(lv.into / lv.span) * 100}%` }} />
+                  <span class="barnum">
+                    {lv.into}/{lv.span}
+                  </span>
                 </div>
                 <small>
-                  {stats[kind] || 0} / {lv.next}　{t('toNext', { n: lv.next - (stats[kind] || 0), l: lv.level + 1 })}
+                  {t('toNext', { n: lv.next - (stats[kind] || 0), l: lv.level + 1 })}　{t('total', { n: stats[kind] || 0 })}
                 </small>
               </div>
             </div>
