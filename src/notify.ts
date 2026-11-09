@@ -3,9 +3,9 @@
 import type { OwnerSettings } from './model';
 
 export type DeanEvent =
-  | { kind: 'hard'; task: string }
+  | { kind: 'hard'; task: string; taskId: string; scene: string }
   | { kind: 'level'; stat: string; level: number; title: string }
-  | { kind: 'urgent'; task: string; due: string }
+  | { kind: 'urgent'; task: string; due: string; taskId: string; scene: string }
   | { kind: 'test' };
 
 export const DEFAULT_MSG_HARD = 'Dean! I just finished a hard task: "{task}" 🎉';
@@ -20,6 +20,16 @@ interface Pending {
   topic: string;
   message: string;
   tag: string;
+  /** page that opens when Dean taps the notification */
+  click?: string;
+}
+
+/** Hogwarts address, pointing at the task (or the progress page) the message is about. */
+function linkFor(ev: DeanEvent) {
+  const base = `${location.origin}${import.meta.env.BASE_URL}`;
+  if (ev.kind === 'hard' || ev.kind === 'urgent') return `${base}?scene=${ev.scene}&task=${ev.taskId}`;
+  if (ev.kind === 'level') return `${base}?view=growth`;
+  return base;
 }
 
 function fill(template: string, vars: Record<string, string | number>) {
@@ -43,7 +53,8 @@ export function messageFor(settings: OwnerSettings, ev: DeanEvent) {
 
 async function post(p: Pending) {
   // A plain text POST with the title in the address, so the browser sends it without an extra check request.
-  const url = `https://ntfy.sh/${encodeURIComponent(p.topic)}?title=Hogwarts&tags=${p.tag}`;
+  let url = `https://ntfy.sh/${encodeURIComponent(p.topic)}?title=Hogwarts&tags=${p.tag}`;
+  if (p.click) url += `&click=${encodeURIComponent(p.click)}`;
   const res = await fetch(url, { method: 'POST', body: p.message });
   if (!res.ok) throw new Error(`ntfy ${res.status}`);
 }
@@ -61,7 +72,7 @@ const saveQueue = (q: Pending[]) => localStorage.setItem(QUEUE_KEY, JSON.stringi
 export async function notifyDean(settings: OwnerSettings, ev: DeanEvent): Promise<boolean> {
   const topic = settings.ntfyTopic?.trim();
   if (!topic) return false;
-  const p: Pending = { topic, message: messageFor(settings, ev), tag: TAGS[ev.kind] };
+  const p: Pending = { topic, message: messageFor(settings, ev), tag: TAGS[ev.kind], click: linkFor(ev) };
   try {
     await post(p);
     return true;

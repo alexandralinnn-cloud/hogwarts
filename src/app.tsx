@@ -3,7 +3,7 @@ import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'p
 import { Actions, type Cheer, type Gain } from './actions';
 import { translateUi, type StrKey } from './i18n';
 import { levelOf, type Lang } from './model';
-import type { SceneId } from './scenes';
+import { SCENES, type SceneId } from './scenes';
 import type { Snapshot, Store } from './store/types';
 import { Board } from './ui/Board';
 import { Growth } from './ui/Growth';
@@ -62,6 +62,22 @@ interface Ctx {
 const AppCtx = createContext<Ctx>(null as unknown as Ctx);
 export const useApp = () => useContext(AppCtx);
 
+function readLink(): { view: View; scene: SceneId | null; task: string | null } {
+  const q = new URLSearchParams(location.search);
+  const sceneId = q.get('scene');
+  const task = q.get('task');
+  const viewParam = q.get('view');
+  const scene = SCENES.some((x) => x.id === sceneId) ? (sceneId as SceneId) : null;
+  const view: View = viewParam === 'growth' || viewParam === 'board' ? viewParam : 'town';
+  if (q.has('scene') || q.has('view') || q.has('task')) {
+    // tidy the address so a reload starts in town again (keeps ?local while developing)
+    ['scene', 'task', 'view'].forEach((k) => q.delete(k));
+    const rest = q.toString();
+    history.replaceState(null, '', location.pathname + (rest ? `?${rest}` : ''));
+  }
+  return scene ? { view: 'town', scene, task } : { view, scene: null, task: null };
+}
+
 export function App({ store }: { store: Store }) {
   const [snap, setSnap] = useState<Snapshot>(store.get());
   useEffect(() => store.subscribe(setSnap), [store]);
@@ -75,9 +91,11 @@ export function App({ store }: { store: Store }) {
   };
   const t = useCallback((key: StrKey, vars?: Record<string, string | number>) => translateUi(lang, key, vars), [lang]);
 
-  const [view, setView] = useState<View>('town');
-  const [scene, setScene] = useState<SceneId | null>(null);
-  const [taskId, setTaskId] = useState<string | null>(null);
+  // A link from a notification can point at a task (?scene=…&task=…) or the progress page (?view=growth).
+  const [link] = useState(readLink);
+  const [view, setView] = useState<View>(link.view);
+  const [scene, setScene] = useState<SceneId | null>(link.scene);
+  const [taskId, setTaskId] = useState<string | null>(link.task);
   const [edit, setEdit] = useState<Edit>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [toasts, setToasts] = useState<Toast[]>([]);

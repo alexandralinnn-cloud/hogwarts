@@ -175,7 +175,7 @@ export class Actions {
     if (task.urgency === 'high' && task.due && left !== null && left <= ALERT_DAYS && !task.private) {
       translated.finally(() => {
         const latest = this.task(task.id) ?? task;
-        this.tellDean({ kind: 'urgent', task: englishName(latest), due: dueInEnglish(task.due!) });
+        this.tellDean({ kind: 'urgent', task: englishName(latest), due: dueInEnglish(task.due!), taskId: task.id, scene: latest.scene });
       });
     }
     return { gain, id: task.id };
@@ -228,7 +228,7 @@ export class Actions {
         { t: 'act', day: dayKey(now), k: 't', by: 1 },
         logOp('exec', award, 'complete', task),
       ]);
-      if (tell) this.tellDean({ kind: 'hard', task: englishName(t) });
+      if (tell) this.tellDean({ kind: 'hard', task: englishName(t), taskId: t.id, scene: t.scene });
       return { exec: award, growth: 0, cheer: { type: 'complete', title: t.title, difficulty: t.difficulty } };
     }
     const back = t.award || 0;
